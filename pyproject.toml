@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scitex-repl"
-version = "0.1.0"
+version = "0.1.1"
 description = "Interactive REPL helpers (embed / less / paste) — standalone module from the SciTeX ecosystem"
 readme = "README.md"
 license = "AGPL-3.0-only"

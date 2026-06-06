@@ -1,0 +1,8 @@
+# scitex-dev audit-project config — repo-tracked whitelist additions.
+# Files / dirs listed here are excused from PS-103 (top-level junk) and
+# related project-structure checks. Add justifications inline.
+
+audit:
+  root-whitelist:
+    files:
+      - codecov.yml   # Codecov project status config (CI badge target).

@@ -24,13 +24,23 @@ try:
 except ImportError:  # pragma: no cover - only on ancient Pythons
     __version__ = "0.0.0+local"
 
+from ._clipboard import (
+    ClipboardError,
+    install_ipython_paste,
+    read_clipboard,
+    write_clipboard,
+)
 from ._embed import embed
 from ._less import less
 from ._paste import paste
 
 __all__ = [
+    "ClipboardError",
     "__version__",
     "embed",
+    "install_ipython_paste",
     "less",
     "paste",
+    "read_clipboard",
+    "write_clipboard",
 ]

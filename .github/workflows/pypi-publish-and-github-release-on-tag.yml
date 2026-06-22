@@ -14,9 +14,9 @@ name: release
 #   2. build         — wheel + sdist built INSIDE the SIF, uploaded as artifact.
 #   3. publish       — PyPI via MANUAL OIDC trusted publishing INSIDE the SIF.
 #   4. release       — GitHub Release with CHANGELOG notes + artifacts.
-#   5. sync-main     — open a develop→main PR (admin-merge) so main
-#                      always equals the latest released commit. Skipped
-#                      if main already matches.
+#
+# develop→main promotion is a DELIBERATE, separate PR (operator policy);
+# this pipeline never auto-syncs main.
 #
 # WHY the SIF (operator standardization 2026-06-18, fleet canary 2026-06-21):
 # the Spartan compute runners have NO Python on the bare node, so the old
@@ -173,41 +173,3 @@ jobs:
             --title "${{ needs.build.outputs.version }}" \
             --notes-file release-notes.md \
             dist/*
-
-  sync-main:
-    # Open develop→main PR so main always equals the latest released
-    # commit. Branch-protected mains require PR review; this job tries
-    # admin-merge but leaves the PR open if that isn't allowed.
-    needs: publish
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '["self-hosted","Linux","X64","scitex-ci"]') }}
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: develop
-      - name: Open develop→main PR if diverged
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          git fetch origin main
-          AHEAD=$(git rev-list --count origin/main..origin/develop)
-          if [ "$AHEAD" -eq 0 ]; then
-            echo "main already up-to-date with develop."
-            exit 0
-          fi
-          EXISTING=$(gh pr list --base main --head develop --state open --json number --jq '.[0].number // empty')
-          if [ -z "$EXISTING" ]; then
-            PR_URL=$(gh pr create --base main --head develop \
-              --title "release: sync main with develop" \
-              --body "Auto-opened by the release pipeline so main equals the latest released commit.")
-            EXISTING=$(echo "$PR_URL" | grep -oE '[0-9]+$')
-            echo "Created PR #${EXISTING}"
-          else
-            echo "Reusing existing PR #${EXISTING}"
-          fi
-          gh pr merge "$EXISTING" --merge --admin \
-            || echo "Admin merge unavailable; PR left open for manual merge."

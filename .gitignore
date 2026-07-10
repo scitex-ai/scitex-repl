@@ -30,3 +30,4 @@ docs/sphinx/api/
 
 # Subprocess-coverage shards (parallel mode).
 .coverage.*
+/.worktrees/

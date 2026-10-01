@@ -2,40 +2,75 @@
 # -*- coding: utf-8 -*-
 """Tests for scitex_repl.paste.
 
-We monkey-patch pyperclip so we don't depend on the test runner having
-clipboard access (CI on headless Linux runners typically does not).
+A stub pyperclip is swapped into ``sys.modules`` so the tests never touch
+the real clipboard (CI on headless Linux runners typically has none).
+No monkeypatch (PA-306): explicit save/restore with try/finally.
 """
 from __future__ import annotations
 
 import sys
 import types
+from collections.abc import Iterator
+from typing import Any
 
 import pytest
 
+from scitex_repl import paste
+
 
 @pytest.fixture
-def fake_pyperclip(monkeypatch):
-    fake = types.SimpleNamespace(
-        paste=lambda: "x = 1 + 1\n",
-        PyperclipException=Exception,
-    )
-    monkeypatch.setitem(sys.modules, "pyperclip", fake)
-    return fake
+def fake_pyperclip() -> Iterator[types.ModuleType]:
+    previous = sys.modules.get("pyperclip")
+    fake = types.ModuleType("pyperclip")
+    setattr(fake, "paste", lambda: "x = 1 + 1\n")
+    setattr(fake, "PyperclipException", Exception)
+    sys.modules["pyperclip"] = fake
+    try:
+        yield fake
+    finally:
+        if previous is None:
+            sys.modules.pop("pyperclip", None)
+        else:
+            sys.modules["pyperclip"] = previous
 
 
-def test_paste_runs_clipboard(fake_pyperclip):
-    from scitex_repl import paste
+def test_paste_executes_clipboard_assignment_silently(
+    fake_pyperclip: types.ModuleType, capfd: Any
+) -> None:
+    # Arrange
+    clipboard_is_noop_assignment = True
 
-    # Should not raise — clipboard content is a no-op assignment.
+    # Act
     paste()
+    captured = capfd.readouterr()
+
+    # Assert
+    assert (clipboard_is_noop_assignment, captured.out, captured.err) == (True, "", "")
 
 
-def test_paste_swallows_exec_errors(fake_pyperclip, capsys):
-    fake_pyperclip.paste = lambda: "raise RuntimeError('boom')"
+def test_paste_error_diagnostic_reports_clipboard_failure(
+    fake_pyperclip: types.ModuleType, capfd: Any
+) -> None:
+    # Arrange
+    setattr(fake_pyperclip, "paste", lambda: "raise RuntimeError('boom')")
 
-    from scitex_repl import paste
-
+    # Act
     paste()
-    captured = capsys.readouterr()
-    assert "Could not execute clipboard content" in captured.out
-    assert "boom" in captured.out
+    err = capfd.readouterr().err
+
+    # Assert
+    assert "Could not execute clipboard content" in err
+
+
+def test_paste_error_diagnostic_includes_original_message(
+    fake_pyperclip: types.ModuleType, capfd: Any
+) -> None:
+    # Arrange
+    setattr(fake_pyperclip, "paste", lambda: "raise RuntimeError('boom')")
+
+    # Act
+    paste()
+    err = capfd.readouterr().err
+
+    # Assert
+    assert "boom" in err

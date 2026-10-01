@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scitex-repl"
-version = "0.1.0"
+version = "0.1.2"
 description = "Interactive REPL helpers (embed / less / paste) — standalone module from the SciTeX ecosystem"
 readme = "README.md"
 license = "AGPL-3.0-only"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [{name = "Yusuke Watanabe", email = "ywatanabe@scitex.ai"}]
 keywords = ["scitex", "repl", "ipython", "clipboard", "less", "embed", "paste"]
 classifiers = [
@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
     "ipython>=8.0",
     "pyperclip>=1.8",
+    "scitex-logging>=0.2.2",
 ]
 
 [project.optional-dependencies]
@@ -28,7 +29,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "ruff",
-    "scitex-dev>=0.11.7",
+    "scitex-dev>=0.62.1",
 ]
 docs = [
     "sphinx>=7.0",
@@ -37,7 +38,11 @@ docs = [
     "sphinx-copybutton>=0.5",
     "sphinx-autodoc-typehints>=1.25",
 ]
-all = []
+# Bare install is the full package; [all] resolves dev+docs for
+# ecosystem-wide `pip install scitex-*[all]` uniformity (PS-214).
+all = [
+    "scitex-repl[dev,docs]",
+]
 
 [project.urls]
 Homepage = "https://github.com/ywatanabe1989/scitex-repl"
@@ -50,6 +55,10 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--disable-warnings"]
+markers = [
+    "smoke: fast subprocess happy-path tests (<60s, runs on every PR)",
+    "e2e: end-to-end workflows against real subsystems (gate with RUN_E2E=1)",
+]
 
 [tool.coverage.run]
 parallel = true

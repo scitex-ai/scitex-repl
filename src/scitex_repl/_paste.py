@@ -11,7 +11,12 @@ indented multi-line copy/paste payloads from editors don't trigger
     ``paste()`` evaluates whatever sits on your clipboard in the
     current scope. Do not point it at untrusted data.
 """
+
 from __future__ import annotations
+
+import scitex_logging as slogging
+
+log = slogging.getLogger(__name__)
 
 
 def paste() -> None:
@@ -30,4 +35,4 @@ def paste() -> None:
         clipboard_content = textwrap.dedent(clipboard_content)
         exec(clipboard_content)  # noqa: S102 - by design
     except Exception as exc:  # pragma: no cover - depends on clipboard
-        print(f"Could not execute clipboard content: {exc}")
+        log.error(f"Could not execute clipboard content: {exc}")

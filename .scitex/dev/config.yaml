@@ -6,3 +6,27 @@ audit:
   root-whitelist:
     files:
       - codecov.yml   # Codecov project status config (CI badge target).
+
+  # PS-231 (workflow-duplication) -- the rule's own BLOCKER 1 case, read out
+  # of the protection API on 2026-09-22 rather than assumed. Converting
+  # `.github/workflows/pytest-matrix-on-ubuntu-py3-11-3-12-3-13.yml` to a
+  # caller RENAMES its published check contexts from the bare
+  # `pytest-matrix-on-ubuntu-py3.11/12/13` to the `pytest-matrix / ...`
+  # caller/callee form, and BOTH protected branches require the bare form:
+  #   gh api repos/scitex-ai/scitex-repl/branches/develop/protection
+  #   gh api repos/scitex-ai/scitex-repl/branches/main/protection
+  # require `pytest-matrix-on-ubuntu-py3.11`, `-py3.12`, `-py3.13` (no
+  # slash). A workflow-only PR would leave every PR waiting forever on
+  # checks nothing can publish again. Convert only together with the
+  # protection edit that moves those required contexts.
+  exemptions:
+    PS-231:
+      - path: .github/workflows/pytest-matrix-on-ubuntu-py3-11-3-12-3-13.yml
+        line: 0
+        reason: >-
+          BLOCKER 1 (rule's own term): branch protection on develop AND main
+          requires the bare `pytest-matrix-on-ubuntu-py3.11/12/13` check
+          contexts this local workflow publishes. A caller would publish
+          `pytest-matrix / ...` instead, which no edit in this repo can map
+          back. Revisit with the admin protection edit that moves the
+          required contexts to the caller form.

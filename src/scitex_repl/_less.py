@@ -4,6 +4,7 @@
 
 Ported from scitex-gen ``_ipython/_less.py``.
 """
+
 from __future__ import annotations
 
 
@@ -25,13 +26,19 @@ def less(output: str) -> None:
     to inherit the parent terminal correctly).
     """
     import os
+    import shlex
     import tempfile
 
     from IPython import get_ipython
 
+    shell = get_ipython()
+    if shell is None:
+        raise RuntimeError("less() requires an active IPython shell")
     with tempfile.NamedTemporaryFile(delete=False, mode="w+t") as tmpfile:
         tmpfile.write(output)
         tmpfile_name = tmpfile.name
 
-    get_ipython().system(f"less {tmpfile_name}")
-    os.remove(tmpfile_name)
+    try:
+        shell.system(f"less {shlex.quote(tmpfile_name)}")
+    finally:
+        os.remove(tmpfile_name)

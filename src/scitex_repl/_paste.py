@@ -11,6 +11,7 @@ indented multi-line copy/paste payloads from editors don't trigger
     ``paste()`` evaluates whatever sits on your clipboard in the
     current scope. Do not point it at untrusted data.
 """
+
 from __future__ import annotations
 
 import scitex_logging as slogging

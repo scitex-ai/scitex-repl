@@ -17,47 +17,22 @@
 #   3. twine upload dist/* with TWINE_USERNAME=__token__ and that minted token.
 #
 # This requires a Trusted Publisher to be configured on PyPI for
-# (project=scitex-repl, owner=ywatanabe1989, repo=scitex-repl,
-#  workflow=pypi-publish-and-github-release-on-tag.yml). It already is — the
-# previous releases published via the Docker action under the same trusted
-# publisher; only the *client* changes here, not PyPI's trust config.
+# (project=scitex-repl, owner=scitex-ai, repo=scitex-repl,
+#  workflow=pypi-publish-and-github-release-on-tag.yml, environment=pypi).
+# The release owner must verify the live Trusted Publisher before tagging;
+# this script neither reads nor changes PyPI's trust configuration.
 #
-# curl, python and (after a --target install) twine all live in the SIF.
+# curl, python and job-owned-venv twine all live in the SIF.
 #
 # Fail-loud (operator directive): every step asserts non-empty output and
 # `set -euo pipefail`; any failure is a HARD error with the exact cause, never
 # a silent skip.
 set -euo pipefail
 
-V="${1:-3.12}"
-VENV="/opt/venv-$V"
-PY="$VENV/bin/python"
-test -x "$PY" || {
-    echo "::error::baked python missing in $VENV — rebuild the SIF: scitex-container apptainer build ci-cpu"
-    exit 1
-}
-
-export LC_ALL=C.UTF-8 LANG=C.UTF-8
-
-# dist/ must already hold the artifacts (downloaded by the publish job before
-# this script runs). Fail loud if empty.
-if [ ! -d dist ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then
-    echo "::error::dist/ is empty — nothing to publish (download the build artifact first)"
-    exit 1
-fi
-echo "=== dist to publish ==="
-ls -l dist
-
-# --- writable scratch (compute-node HOME is RO inside the container) ---
-TMPDIR="/tmp/publish-scitex_repl-$V"
-export TMPDIR
-rm -rf "$TMPDIR"
-mkdir -p "$TMPDIR/site" "$TMPDIR/uv-cache"
-export UV_CACHE_DIR="$TMPDIR/uv-cache"
-export XDG_CACHE_HOME="$TMPDIR"
-export PIP_CACHE_DIR="$TMPDIR/pip-cache"
-unset VIRTUAL_ENV || true
-export PATH="$VENV/bin:$PATH"
+source .github/ci/job-environment.sh
+repl_ci_environment publish "${1:-3.12}"
+PY="$CI_PY"
+"$PY" -I .github/ci/validate-dist.py dist
 
 # --- step 1: request the OIDC JWT (audience=pypi) from GitHub ---
 : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?ACTIONS_ID_TOKEN_REQUEST_TOKEN not set — the publish job needs 'permissions: id-token: write'}"
@@ -96,11 +71,11 @@ if [ -z "$MINTED" ]; then
 fi
 echo "PyPI token minted (length=${#MINTED})"
 
-# --- step 3: install twine into the writable target, then upload ---
-echo "=== installing twine (--target) ==="
-uv pip install --python "$PY" --target="$TMPDIR/site" twine ||
-    "$PY" -m pip install --target="$TMPDIR/site" twine
-export PYTHONPATH="$TMPDIR/site${PYTHONPATH:+:$PYTHONPATH}"
+# --- step 3: validate with job-owned twine, then upload ---
+echo "=== installing twine (job-owned venv) ==="
+"$PY" -I -m pip --isolated install --index-url https://pypi.org/simple twine
+"$PY" -I -m pip --isolated check
+"$PY" -I -m twine check --strict dist/*
 
 echo "=== twine upload dist/* ==="
 TWINE_USERNAME="__token__" TWINE_PASSWORD="$MINTED" \

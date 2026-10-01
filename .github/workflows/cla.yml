@@ -57,15 +57,10 @@ permissions:
 jobs:
   CLAssistant:
     uses: scitex-ai/.github/.github/workflows/cla.yml@f5d19f5b7424fcf985137bb6acff54f5d0e11749 # main@2026-08-30
-    # NON-DEFAULT ON PURPOSE. The reusable defaults to `bot*,ywatanabe1989`;
-    # the inline version this replaces also allowlisted `LLEmacs`. Taking the
-    # default would silently start demanding a CLA signature from an
-    # already-allowlisted contributor, so the third entry is carried over.
-    #
-    # `default_branch` (main) and `runs_on` (ubuntu-latest) already match what
-    # the inline version did, so they are left at their defaults.
+    # Preserve trusted main's exact owner policy; retain the authenticated
+    # reusable contributor/signature gate and its explicit secret mapping.
     with:
-      owner_allowlist: "bot*,ywatanabe1989,LLEmacs"
+      owner_allowlist: "bot*,ywatanabe1989"
     # The ONE secret the callee declares. GITHUB_TOKEN is provided to called
     # workflows automatically and must NOT be listed here.
     secrets:

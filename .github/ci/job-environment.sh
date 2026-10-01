@@ -37,6 +37,8 @@ repl_ci_environment() {
     export PIP_KEYRING_PROVIDER=disabled
     export PIP_DISABLE_PIP_VERSION_CHECK=1
     export PYTHONDONTWRITEBYTECODE=1
+    export SCITEX_LOGGING_FORMAT=default
+    export SCITEX_STORE_DSN='postgresql://repl-refused@127.0.0.1:1/repl-refused?connect_timeout=1'
     export LC_ALL=C.UTF-8 LANG=C.UTF-8
     mkdir -p "$TMPDIR" "$SCITEX_DIR" "$IPYTHONDIR" "$PIP_CACHE_DIR" \
         "$UV_CACHE_DIR" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
@@ -45,4 +47,30 @@ repl_ci_environment() {
     CI_PY="$CI_SCRATCH/venv/bin/python"
     export PATH="$CI_SCRATCH/venv/bin:$PATH"
     echo "repl-ci: job=$kind python=$version scratch=$CI_SCRATCH"
+}
+
+# Each application receives only its owned state and declared command operands.
+# OIDC credentials remain in the publisher shell and are passed only to curl
+# and Twine at their corresponding calls.
+repl_ci_run() {
+    test -n "${CI_PY:-}" && test -d "${CI_SCRATCH:-}" || {
+        echo "::error::REPL job context is not initialized" >&2
+        return 1
+    }
+    env -i \
+        "PATH=$CI_SCRATCH/venv/bin:/usr/local/bin:/usr/bin:/bin" \
+        LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+        "TMPDIR=$TMPDIR" "SCITEX_DIR=$SCITEX_DIR" "IPYTHONDIR=$IPYTHONDIR" \
+        "XDG_CACHE_HOME=$XDG_CACHE_HOME" "XDG_CONFIG_HOME=$XDG_CONFIG_HOME" \
+        "XDG_DATA_HOME=$XDG_DATA_HOME" "COVERAGE_FILE=$COVERAGE_FILE" \
+        "PIP_CACHE_DIR=$PIP_CACHE_DIR" "UV_CACHE_DIR=$UV_CACHE_DIR" \
+        PIP_CONFIG_FILE=/dev/null UV_NO_CONFIG=1 NETRC=/dev/null \
+        PIP_KEYRING_PROVIDER=disabled PIP_DISABLE_PIP_VERSION_CHECK=1 \
+        PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 RUN_E2E=1 \
+        SCITEX_LOGGING_FORMAT=default "SCITEX_STORE_DSN=$SCITEX_STORE_DSN" \
+        "SCITEX_REPL_RELEASE_TAG=${SCITEX_REPL_RELEASE_TAG:-}" \
+        "PGHOST=$CI_SCRATCH/refused-socket" PGPORT=1 PGUSER=repl-refused \
+        PGDATABASE=repl-refused "PGPASSFILE=$CI_SCRATCH/refused-pgpass" \
+        "PGSERVICEFILE=$CI_SCRATCH/refused-pgservice" \
+        GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "$@"
 }

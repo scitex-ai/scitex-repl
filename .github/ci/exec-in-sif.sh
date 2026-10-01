@@ -136,23 +136,35 @@ export APPTAINERENV_SCITEX_REPL_CI_JOB_TMP=/tmp
 
 # Explicit checkout and /tmp binds preserve source identity and scratch even
 # when a host profile does not bind /scratch automatically. Arrays retain spaces.
-GPFS_PROJECT="/data/gpfs/projects/punim0264"
-APPTAINER_ARGV=(exec --pwd "$PWD" --bind "$PWD:$PWD" --bind "$CI_JOB_ROOT/tmp:/tmp")
-if [ -d "$GPFS_PROJECT" ]; then
-    APPTAINER_ARGV+=(--bind "$GPFS_PROJECT")
-    GPFS_STATE="present (punim0264 bound)"
-else
-    GPFS_STATE="absent (no GPFS bind)"
-fi
+APPTAINER_ARGV=(exec --cleanenv --no-home --pwd "$PWD" --bind "$PWD:$PWD" --bind "$CI_JOB_ROOT/tmp:/tmp")
 
 # Echo the resolved plan: when a run fails on an unfamiliar node, the FIRST
 # question is which of the two profiles it took.
 echo "exec-in-sif: apptainer=$APPTAINER (via $APPTAINER_FROM)"
 echo "exec-in-sif: sif=$SIF"
 echo "exec-in-sif: sif_sha256=$ACTUAL_SIF_SHA256 (verified)"
-echo "exec-in-sif: $GPFS_PROJECT $GPFS_STATE"
 echo "exec-in-sif: job_scratch=$CI_JOB_ROOT (available=${CI_AVAILABLE_KB} KiB)"
 echo "exec-in-sif: APPTAINER_TMPDIR=$APPTAINER_TMPDIR"
 echo "exec-in-sif: + $APPTAINER ${APPTAINER_ARGV[*]} $SIF bash .github/ci/$INNER $*"
 
-exec "$APPTAINER" "${APPTAINER_ARGV[@]}" "$SIF" bash ".github/ci/$INNER" "$@"
+SIF_ENV=(
+    PATH=/usr/local/bin:/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8
+    "APPTAINER_TMPDIR=$APPTAINER_TMPDIR"
+    "APPTAINER_CACHEDIR=$APPTAINER_CACHEDIR"
+    "APPTAINER_CONFIGDIR=$APPTAINER_CONFIGDIR"
+    APPTAINERENV_TMPDIR=/tmp APPTAINERENV_SCITEX_REPL_CI_JOB_TMP=/tmp
+)
+for key in HOME USER LOGNAME; do
+    if [ -n "${!key:-}" ]; then SIF_ENV+=("$key=${!key}"); fi
+done
+if [ "$INNER" = build-in-sif.sh ] || [ "$INNER" = publish-in-sif.sh ]; then
+    : "${SCITEX_REPL_RELEASE_TAG:?build and publish require the explicit release tag}"
+    SIF_ENV+=("APPTAINERENV_SCITEX_REPL_RELEASE_TAG=$SCITEX_REPL_RELEASE_TAG")
+fi
+if [ "$INNER" = publish-in-sif.sh ]; then
+    for key in ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL; do
+        : "${!key:?publisher requires explicit OIDC context}"
+        SIF_ENV+=("APPTAINERENV_$key=${!key}")
+    done
+fi
+exec env -i "${SIF_ENV[@]}" "$APPTAINER" "${APPTAINER_ARGV[@]}" "$SIF" bash ".github/ci/$INNER" "$@"

@@ -18,6 +18,11 @@ on:
 
 jobs:
   auto-merge-to-develop:
+    # Match the callee's merge and post-merge gate dispatch permissions.
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
     uses: scitex-ai/.github/.github/workflows/auto-merge-to-develop.yml@main
     with:
       # JSON array STRING — consumed by fromJSON in the callee. A YAML list

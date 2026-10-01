@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
     "ipython>=8.0",
     "pyperclip>=1.8",
+    "scitex-logging>=0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -37,7 +38,11 @@ docs = [
     "sphinx-copybutton>=0.5",
     "sphinx-autodoc-typehints>=1.25",
 ]
-all = []
+# Bare install is the full package; [all] resolves dev+docs for
+# ecosystem-wide `pip install scitex-*[all]` uniformity (PS-214).
+all = [
+    "scitex-repl[dev,docs]",
+]
 
 [project.urls]
 Homepage = "https://github.com/ywatanabe1989/scitex-repl"
@@ -50,6 +55,10 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--disable-warnings"]
+markers = [
+    "smoke: fast subprocess happy-path tests (<60s, runs on every PR)",
+    "e2e: end-to-end workflows against real subsystems (gate with RUN_E2E=1)",
+]
 
 [tool.coverage.run]
 parallel = true
